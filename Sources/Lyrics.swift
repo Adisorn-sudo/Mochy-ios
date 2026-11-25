@@ -400,15 +400,15 @@ enum LyricGlow {
               let boost = CIFilter(name: "CIColorMatrix") else { return nil }
         let scale = Double(flat.scale)
         tight.setValue(input, forKey: kCIInputImageKey)
-        tight.setValue(4 * scale, forKey: kCIInputRadiusKey)
+        tight.setValue(3 * scale, forKey: kCIInputRadiusKey)
         wide.setValue(input, forKey: kCIInputImageKey)
-        wide.setValue(11 * scale, forKey: kCIInputRadiusKey)
+        wide.setValue(10 * scale, forKey: kCIInputRadiusKey)
         guard let t = tight.outputImage, let w = wide.outputImage else { return nil }
         add.setValue(t, forKey: kCIInputImageKey)
         add.setValue(w, forKey: kCIInputBackgroundImageKey)
         guard let sum = add.outputImage else { return nil }
         boost.setValue(sum, forKey: kCIInputImageKey)
-        boost.setValue(CIVector(x: 0, y: 0, z: 0, w: 2.4), forKey: "inputAVector")
+        boost.setValue(CIVector(x: 0, y: 0, z: 0, w: 0.75), forKey: "inputAVector")
         guard let out = boost.outputImage,
               let cg = ciContext.createCGImage(out, from: input.extent) else { return nil }
         return UIImage(cgImage: cg, scale: flat.scale, orientation: .up)
@@ -561,7 +561,7 @@ final class WordView: UIView {
         CATransaction.setDisableActions(true)
         maskLayer.frame = CGRect(x: (p - 1) * total, y: -16, width: total, height: bounds.height + 32)
         CATransaction.commit()
-        glow.alpha = min(1, 1.0 * lift * LyricGlow.factor)
+        glow.alpha = min(0.9, 0.7 * lift * LyricGlow.factor)
         let scale = 1 + 0.075 * lift
         transform = CGAffineTransform(translationX: 0, y: -4.5 * lift).scaledBy(x: scale, y: scale)
     }
@@ -713,7 +713,7 @@ final class LyricCell: UITableViewCell {
                     self.lineGlow.image = image
                 }
             }
-            lineGlow.alpha = min(1, 1.0 * LyricGlow.factor)
+            lineGlow.alpha = min(0.9, 0.7 * LyricGlow.factor)
         } else {
             lineGlow.alpha = 0
         }

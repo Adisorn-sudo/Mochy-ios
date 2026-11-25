@@ -239,10 +239,9 @@ final class LyricsBackdropView: UIView {
     }
 }
 
-/// Hiệu ứng những đốm / ngôi sao sáng lấp lánh trôi nhẹ trên nền lời (giống video lyric).
+/// Hiệu ứng những đốm sáng lấp lánh trôi nhẹ trên nền lời (giống video lyric).
 final class StarFieldView: UIView {
     private static let dotImage: CGImage? = StarFieldView.makeDot()
-    private static let sparkImage: CGImage? = StarFieldView.makeSpark()
 
     private var running = false
     private var builtSize = CGSize.zero
@@ -283,17 +282,16 @@ final class StarFieldView: UIView {
         builtSize = bounds.size
         builtLevel = AppSettings.starLevel
         guard running, builtLevel > 0, bounds.width > 10, bounds.height > 10,
-              let dot = StarFieldView.dotImage, let spark = StarFieldView.sparkImage else { return }
+              let dot = StarFieldView.dotImage else { return }
         let level = CGFloat(builtLevel) / 100
-        let count = max(6, Int(level * 64))
+        let count = max(8, Int(level * 80))
         let now = CACurrentMediaTime()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for i in 0..<count {
-            let isSpark = i % 4 == 0   // một phần tư là sao bốn cánh sáng hơn
-            let size: CGFloat = isSpark ? CGFloat.random(in: 16...32) : CGFloat.random(in: 4...11)
+        for _ in 0..<count {
+            let size: CGFloat = CGFloat.random(in: 3...9)   // chỉ là đốm sáng tròn, không có hình ngôi sao
             let star = CALayer()
-            star.contents = isSpark ? spark : dot
+            star.contents = dot
             star.bounds = CGRect(x: 0, y: 0, width: size, height: size)
             let x = CGFloat.random(in: 0...bounds.width)
             let y = CGFloat.random(in: 0...bounds.height)
@@ -311,7 +309,7 @@ final class StarFieldView: UIView {
 
             let pulse = CABasicAnimation(keyPath: "transform.scale")
             pulse.fromValue = 0.65
-            pulse.toValue = isSpark ? 1.35 : 1.15
+            pulse.toValue = 1.15
             pulse.duration = life / 2
             pulse.autoreverses = true
             pulse.repeatCount = .infinity
@@ -342,35 +340,6 @@ final class StarFieldView: UIView {
             guard let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 0.25, 1]) else { return }
             let c = CGPoint(x: s / 2, y: s / 2)
             ctx.cgContext.drawRadialGradient(g, startCenter: c, startRadius: 0, endCenter: c, endRadius: s / 2, options: [])
-        }
-        return image.cgImage
-    }
-
-    /// Sao bốn cánh: lõi sáng + hai tia mảnh ngang / dọc.
-    private static func makeSpark() -> CGImage? {
-        let s: CGFloat = 64
-        let image = UIGraphicsImageRenderer(size: CGSize(width: s, height: s)).image { ctx in
-            let cg = ctx.cgContext
-            let c = CGPoint(x: s / 2, y: s / 2)
-            let colors = [UIColor(white: 1, alpha: 1).cgColor,
-                          UIColor(white: 1, alpha: 0.35).cgColor,
-                          UIColor(white: 1, alpha: 0).cgColor] as CFArray
-            if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 0.3, 1]) {
-                cg.drawRadialGradient(g, startCenter: c, startRadius: 0, endCenter: c, endRadius: s * 0.3, options: [])
-            }
-            cg.setFillColor(UIColor(white: 1, alpha: 0.95).cgColor)
-            let w: CGFloat = 2.6
-            cg.move(to: CGPoint(x: c.x, y: 0))
-            cg.addLine(to: CGPoint(x: c.x + w, y: c.y))
-            cg.addLine(to: CGPoint(x: c.x, y: s))
-            cg.addLine(to: CGPoint(x: c.x - w, y: c.y))
-            cg.closePath()
-            cg.move(to: CGPoint(x: 0, y: c.y))
-            cg.addLine(to: CGPoint(x: c.x, y: c.y - w))
-            cg.addLine(to: CGPoint(x: s, y: c.y))
-            cg.addLine(to: CGPoint(x: c.x, y: c.y + w))
-            cg.closePath()
-            cg.fillPath()
         }
         return image.cgImage
     }

@@ -95,7 +95,7 @@ enum AppSettings {
     /// Độ sáng của vầng sáng quanh chữ lời đang hát: 0 (tắt) ... 100. Mặc định 60 (bằng độ sáng cũ của lời theo từng từ).
     static var lyricGlow: Int {
         get {
-            if defaults.object(forKey: "lyrics.glow") == nil { return 80 }
+            if defaults.object(forKey: "lyrics.glow") == nil { return 60 }
             return min(max(defaults.integer(forKey: "lyrics.glow"), 0), 100)
         }
         set { defaults.set(min(max(newValue, 0), 100), forKey: "lyrics.glow") }
