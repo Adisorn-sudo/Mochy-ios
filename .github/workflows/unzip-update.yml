@@ -1,0 +1,77 @@
+name: Unzip and update
+
+# Cách dùng trên điện thoại:
+#   1) Upload tệp .zip (ví dụ Mochy-iOS-0.6.7-th-local-lyrics.zip) vào THƯ MỤC GỐC của repo, nhánh main
+#   2) Action này tự giải nén, chép đè vào repo, xoá tệp .zip, commit rồi chạy build
+on:
+  push:
+    branches: [main]
+    paths: ['*.zip']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit + push
+  actions: write    # để gọi workflow build sau khi push
+
+concurrency:
+  group: unzip-update
+  cancel-in-progress: false
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find zip
+        id: find
+        run: |
+          ZIP="$(ls -t ./*.zip 2>/dev/null | head -n 1 || true)"
+          if [ -z "$ZIP" ]; then
+            echo "Không có tệp .zip ở thư mục gốc, bỏ qua."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Dùng: $ZIP"
+            echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Unzip and copy into repo
+        if: steps.find.outputs.found == 'true'
+        run: |
+          rm -rf /tmp/unz && mkdir /tmp/unz
+          unzip -q "${{ steps.find.outputs.zip }}" -d /tmp/unz
+          rm -rf /tmp/unz/__MACOSX
+          # Nếu zip chỉ có 1 thư mục cấp cao (vd Mochy-iOS-0.6.7/) thì lấy nội dung bên trong
+          SRC=/tmp/unz
+          if [ "$(ls -A /tmp/unz | wc -l)" = "1" ] && [ -d "/tmp/unz/$(ls -A /tmp/unz)" ]; then
+            SRC="/tmp/unz/$(ls -A /tmp/unz)"
+          fi
+          # Không đụng .git và .github (GITHUB_TOKEN không được phép sửa file workflow)
+          rsync -a --exclude '.git/' --exclude '.github/' "$SRC"/ ./
+          rm -f ./*.zip
+          # Quyền chạy cho build.sh
+          chmod +x build.sh 2>/dev/null || true
+
+      - name: Commit and push
+        id: push
+        if: steps.find.outputs.found == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Không có thay đổi."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "Update from zip"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Push bằng GITHUB_TOKEN không tự kích hoạt workflow khác, nên gọi build thủ công
+      - name: Run build
+        if: steps.push.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build.yml --ref main
