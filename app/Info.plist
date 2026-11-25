@@ -49,6 +49,8 @@
 	<true/>
 	<key>MochyBuildCommit</key>
 	<string>local</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Chọn ảnh làm ảnh bìa cho bài hát.</string>
 	<key>MochyChannel</key>
 	<string>dev</string>
 	<key>UIAppFonts</key>

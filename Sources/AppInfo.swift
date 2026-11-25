@@ -92,6 +92,15 @@ enum AppSettings {
         set { defaults.set(min(max(newValue, 0), 6), forKey: "lyrics.weight") }
     }
 
+    /// Độ sáng của vầng sáng quanh chữ lời đang hát: 0 (tắt) ... 100. Mặc định 60 (bằng độ sáng cũ của lời theo từng từ).
+    static var lyricGlow: Int {
+        get {
+            if defaults.object(forKey: "lyrics.glow") == nil { return 60 }
+            return min(max(defaults.integer(forKey: "lyrics.glow"), 0), 100)
+        }
+        set { defaults.set(min(max(newValue, 0), 100), forKey: "lyrics.glow") }
+    }
+
     static var recentSearches: [String] {
         get { return defaults.stringArray(forKey: "search.recent") ?? [] }
         set { defaults.set(Array(newValue.prefix(12)), forKey: "search.recent") }

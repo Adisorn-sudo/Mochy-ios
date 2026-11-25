@@ -126,7 +126,7 @@ final class NowPlayingViewController: UIViewController {
     private static let green = Theme.accent   // màu nhấn của Mochy
     private var tone = UIColor.white           // màu nhấn lấy từ ảnh bìa
     private var toneLight: UIColor { return tone.mixed(with: .white, amount: 0.3) }   // bản sáng hơn cho nút
-    private var weightPanel: WeightPanel?
+    private var weightPanel: UIView?   // WeightPanel hoặc GlowPanel (chỉ một bảng mở cùng lúc)
     private var coverLuminance: CGFloat = 0.2   // độ sáng phần dưới ảnh bìa
     /// Nền phía dưới (khi chưa bật lời) có sáng không: theo cài đặt hoặc tự động theo ảnh bìa.
     private var backdropLight: Bool {
@@ -783,6 +783,13 @@ final class NowPlayingViewController: UIViewController {
         sheet.addAction(UIAlertAction(title: LF("Độ đậm lời: %@…", "\(RoundedFont.titles[AppSettings.lyricWeight])"), style: .default) { [weak self] _ in
             self?.showWeightPanel()
         })
+        sheet.addAction(UIAlertAction(title: LF("Độ sáng chữ lời: %@…", AppSettings.lyricGlow == 0 ? L("Tắt") : "\(AppSettings.lyricGlow)%"), style: .default) { [weak self] _ in
+            self?.showGlowPanel()
+        })
+        sheet.addAction(UIAlertAction(title: L("Đổi ảnh bìa…"), style: .default) { [weak self] _ in
+            guard let self = self else { return }
+            CustomArtworkPicker.present(for: song, from: self)
+        })
         sheet.addAction(UIAlertAction(title: LF("Làm mờ nền: %@…", "\(AppSettings.playerBlur.title)"), style: .default) { [weak self] _ in
             self?.blurTapped()
         })
@@ -807,6 +814,40 @@ final class NowPlayingViewController: UIViewController {
         let panel = WeightPanel(index: AppSettings.lyricWeight)
         panel.onChange = { [weak self] index in
             AppSettings.lyricWeight = index
+            self?.lyricsView.reloadStyle()
+        }
+        panel.onClose = { [weak self] in self?.hideWeightPanel() }
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(panel)
+        NSLayoutConstraint.activate([
+            panel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 17),
+            panel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -17),
+            panel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -(view.safeAreaInsets.bottom + 24)),
+            panel.heightAnchor.constraint(equalToConstant: 108)
+        ])
+        panel.alpha = 0
+        panel.transform = CGAffineTransform(translationX: 0, y: 30)
+        weightPanel = panel
+        idleTimer?.invalidate()
+        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0, options: [], animations: {
+            panel.alpha = 1
+            panel.transform = .identity
+        }, completion: nil)
+    }
+
+    /// Bảng chỉnh độ sáng vầng sáng quanh chữ lời (tự mở lời nếu đang ở màn hình bìa).
+    private func showGlowPanel() {
+        guard weightPanel == nil else { return }
+        if mode == .cover {
+            lyricsView.resetFollow()
+            loadLyrics()
+            apply(mode: .lyrics, animated: true)
+        } else if mode == .immersive {
+            apply(mode: .lyrics, animated: true)
+        }
+        let panel = GlowPanel(value: AppSettings.lyricGlow)
+        panel.onChange = { [weak self] value in
+            AppSettings.lyricGlow = value
             self?.lyricsView.reloadStyle()
         }
         panel.onClose = { [weak self] in self?.hideWeightPanel() }

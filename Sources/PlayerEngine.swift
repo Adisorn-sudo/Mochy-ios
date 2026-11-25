@@ -61,6 +61,13 @@ final class PlayerEngine: NSObject {
                            name: AVAudioSession.interruptionNotification, object: nil)
         center.addObserver(self, selector: #selector(handleRouteChange(_:)),
                            name: AVAudioSession.routeChangeNotification, object: nil)
+        center.addObserver(self, selector: #selector(customArtworkChanged(_:)), name: .customArtworkChanged, object: nil)
+    }
+
+    /// Người dùng vừa đổi / xoá ảnh bìa của bài đang phát: nạp lại ảnh cho màn hình đang phát và màn hình khoá.
+    @objc private func customArtworkChanged(_ note: Notification) {
+        guard let id = note.userInfo?["videoId"] as? String, let song = currentSong, song.videoId == id else { return }
+        loadArtwork(for: song, token: requestToken)
     }
 
     // MARK: - Điều khiển

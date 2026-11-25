@@ -49,6 +49,7 @@ enum LocalMusicStore {
         guard url.scheme == artworkScheme else { return nil }
         let id = url.lastPathComponent
         guard !id.isEmpty else { return nil }
+        if url.host == "custom" { return CustomArtworkStore.file(forBaseName: id) }   // ảnh tự chọn
         return artworkFile(id: id)
     }
 

@@ -53,6 +53,9 @@ enum SongActions {
                 Toast.show(L("Đang tải xuống…"))
             })
         }
+        sheet.addAction(UIAlertAction(title: L("Đổi ảnh bìa…"), style: .default) { _ in
+            CustomArtworkPicker.present(for: song, from: vc)
+        })
         sheet.addAction(UIAlertAction(title: L("Tạo / sửa lời bài hát…"), style: .default) { _ in
             CustomLyricsEditorViewController.present(for: song, from: vc)
         })

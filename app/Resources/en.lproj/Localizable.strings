@@ -397,3 +397,14 @@
 "Playlist từ link" = "Playlist from a link";
 "Bù độ trễ tay bấm: %@ giây" = "Tap delay compensation: %@ sec";
 "Đang nhập %@/%@…" = "Importing %@/%@…";
+"Ảnh bìa bài hát" = "Song cover art";
+"Chọn ảnh từ thư viện…" = "Choose a photo from your library…";
+"Không mở được thư viện ảnh" = "Couldn't open the photo library";
+"Dùng lại ảnh bìa gốc" = "Use the original cover art";
+"Đã khôi phục ảnh bìa gốc" = "Original cover art restored";
+"Đã đổi ảnh bìa" = "Cover art changed";
+"Không lưu được ảnh" = "Couldn't save the image";
+"Đổi ảnh bìa…" = "Change cover art…";
+"Độ sáng chữ lời: %@…" = "Lyrics glow: %@…";
+"Độ sáng chữ lời" = "Lyrics glow";
+"Tắt" = "Off";

@@ -51,9 +51,9 @@ final class SongCardCell: UICollectionViewCell {
     func configure(song: Song) {
         titleLabel.text = song.title
         artistLabel.text = song.artist
-        representedURL = song.thumbnailURL
+        representedURL = song.displayThumbnailURL
         art.image = nil
-        if let url = song.thumbnailURL {
+        if let url = song.displayThumbnailURL {
             ImageLoader.shared.load(url) { [weak self] image in
                 guard let self = self, self.representedURL == url else { return }
                 self.art.alpha = 0

@@ -525,3 +525,86 @@ final class VideoBackdrop {
         if p.rate == 0 { p.play() }
     }
 }
+
+/// Bảng chỉnh độ sáng vầng sáng quanh chữ lời đang hát (0–100%), cùng kiểu với WeightPanel.
+final class GlowPanel: UIView {
+    var onChange: ((Int) -> Void)?
+    var onClose: (() -> Void)?
+    private let blur = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+    private let titleLabel = UILabel()
+    private let valueLabel = UILabel()
+    private let slider = UISlider()
+    private let off = UILabel()
+    private let bright = UILabel()
+    private let done = UIButton(type: .system)
+    private var value: Int
+
+    init(value: Int) {
+        self.value = value
+        super.init(frame: .zero)
+        layer.cornerRadius = 22
+        clipsToBounds = true
+        layer.borderWidth = 1
+        layer.borderColor = UIColor(white: 1, alpha: 0.2).cgColor
+        blur.frame = bounds
+        blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(blur)
+        titleLabel.text = L("Độ sáng chữ lời")
+        titleLabel.font = RoundedFont.font(16, index: 5)
+        titleLabel.textColor = .white
+        valueLabel.text = GlowPanel.text(for: value)
+        valueLabel.font = RoundedFont.font(13, index: 3)
+        valueLabel.textColor = UIColor(white: 1, alpha: 0.6)
+        done.setTitle(L("Xong"), for: .normal)
+        done.titleLabel?.font = RoundedFont.font(16, index: 5)
+        done.setTitleColor(Theme.accent, for: .normal)
+        done.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        off.text = L("Tắt")
+        off.font = RoundedFont.font(13, index: 3)
+        off.textColor = UIColor(white: 1, alpha: 0.7)
+        bright.text = "100%"
+        bright.font = RoundedFont.font(13, index: 3)
+        bright.textColor = .white
+        bright.textAlignment = .right
+        slider.minimumValue = 0
+        slider.maximumValue = 100
+        slider.value = Float(value)
+        slider.minimumTrackTintColor = .white
+        slider.maximumTrackTintColor = UIColor(white: 1, alpha: 0.3)
+        slider.addTarget(self, action: #selector(changed), for: .valueChanged)
+        slider.addTarget(self, action: #selector(committed), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        [titleLabel, valueLabel, done, off, slider, bright].forEach { addSubview($0) }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) chưa được hỗ trợ") }
+
+    private static func text(for value: Int) -> String {
+        return value == 0 ? L("Tắt") : "\(value)%"
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let w = bounds.width
+        titleLabel.frame = CGRect(x: 20, y: 14, width: w - 120, height: 22)
+        done.frame = CGRect(x: w - 20 - 60, y: 10, width: 60, height: 30)
+        valueLabel.frame = CGRect(x: 20, y: 38, width: w - 40, height: 18)
+        off.frame = CGRect(x: 20, y: 68, width: 34, height: 24)
+        bright.frame = CGRect(x: w - 20 - 46, y: 68, width: 46, height: 24)
+        slider.frame = CGRect(x: 58, y: 66, width: w - 58 - 70, height: 28)
+    }
+
+    @objc private func changed() {
+        let v = Int(slider.value.rounded())
+        guard v != value else { return }
+        value = v
+        valueLabel.text = GlowPanel.text(for: v)
+    }
+
+    /// Áp dụng khi thả tay (dựng lại lời mỗi lần kéo sẽ giật).
+    @objc private func committed() {
+        Haptics.tap()
+        onChange?(value)
+    }
+
+    @objc private func closeTapped() { onClose?() }
+}

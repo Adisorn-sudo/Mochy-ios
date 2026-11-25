@@ -13,9 +13,15 @@ struct Song: Codable, Hashable {
 
     /// Ảnh bìa lớn hơn (dùng cho màn hình đang phát).
     var largeThumbnailURL: URL? {
+        if let custom = CustomArtworkStore.url(for: videoId) { return custom }   // ảnh người dùng tự chọn
         guard let url = thumbnailURL else { return nil }
         let big = url.absoluteString.replacingOccurrences(of: "=w226-h226", with: "=w544-h544")
         return URL(string: big) ?? url
+    }
+
+    /// Ảnh bìa nhỏ để hiển thị: ảnh người dùng tự chọn (nếu có) hoặc ảnh gốc.
+    var displayThumbnailURL: URL? {
+        return CustomArtworkStore.url(for: videoId) ?? thumbnailURL
     }
 
     static func == (lhs: Song, rhs: Song) -> Bool {

@@ -384,6 +384,34 @@ final class LyricsService {
     }
 }
 
+/// Vầng sáng quanh chữ đang hát, chỉnh được độ sáng trong menu "…" của màn hình đang phát (0–100%).
+enum LyricGlow {
+    static let pad: CGFloat = 28
+    private static let cache = NSCache<NSString, UIImage>()
+
+    /// Hệ số nhân độ sáng: 60% = 1.0 (độ sáng gốc), 100% ≈ 1.67, 0% = tắt.
+    static var factor: CGFloat {
+        return CGFloat(AppSettings.lyricGlow) / 60
+    }
+
+    /// Ảnh vầng sáng cho cả dòng (kể cả dòng xuống hàng). Vẽ ảnh nhỏ rồi để GPU phóng to nên mềm và rất nhanh.
+    static func lineImage(text: String, font: UIFont, width: CGFloat, height: CGFloat) -> UIImage? {
+        let key = "line|\(text)|\(font.fontName)|\(font.pointSize)|\(Int(width))" as NSString
+        if let hit = cache.object(forKey: key) { return hit }
+        let size = CGSize(width: width + pad * 2, height: height + pad * 2)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = UIScreen.main.scale / 4
+        format.opaque = false
+        let attributed = NSAttributedString(string: text, attributes: LyricCell.attributes(font: font, color: .white, text: text))
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            attributed.draw(with: CGRect(x: pad, y: pad, width: width, height: height),
+                            options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+        }
+        cache.setObject(image, forKey: key)
+        return image
+    }
+}
+
 /// Một từ đang hát: hai lớp chữ (mờ + sáng), lớp sáng có mặt nạ chạy từ trái sang phải với mép mềm;
 /// từ nổi nhẹ lên, phóng to một chút và phát sáng khi đang được hát.
 final class WordView: UIView {
@@ -493,7 +521,7 @@ final class WordView: UIView {
         CATransaction.setDisableActions(true)
         maskLayer.frame = CGRect(x: (p - 1) * total, y: -16, width: total, height: bounds.height + 32)
         CATransaction.commit()
-        glow.alpha = 0.9 * lift
+        glow.alpha = min(1, 0.9 * lift * LyricGlow.factor)
         let scale = 1 + 0.075 * lift
         transform = CGAffineTransform(translationX: 0, y: -4.5 * lift).scaledBy(x: scale, y: scale)
     }
@@ -525,6 +553,7 @@ final class LyricCell: UITableViewCell {
     let holder = UIView()
     let label = UILabel()
     let blurView = UIImageView()
+    private let lineGlow = UIImageView()   // vầng sáng cho lời chỉ có thời gian theo dòng (kể cả lời tự tạo)
     private let wordsHost = UIView()
     private(set) var row = -1
     private var text = ""
@@ -547,6 +576,9 @@ final class LyricCell: UITableViewCell {
         blurView.contentMode = .scaleToFill
         contentView.addSubview(holder)
         holder.addSubview(blurView)
+        lineGlow.contentMode = .scaleToFill
+        lineGlow.alpha = 0
+        holder.addSubview(lineGlow)
         holder.addSubview(label)
         holder.addSubview(wordsHost)
     }
@@ -563,7 +595,10 @@ final class LyricCell: UITableViewCell {
         wordsHost.frame = holder.bounds
         let pad = LyricCell.blurPad
         blurView.frame = CGRect(x: -pad, y: -pad, width: w + pad * 2, height: h + pad * 2)
+        let glowPad = LyricGlow.pad
+        lineGlow.frame = CGRect(x: -glowPad, y: -glowPad, width: w + glowPad * 2, height: h + glowPad * 2)
         buildWordsIfNeeded(width: w)
+        refreshLineGlow()   // lần bố cục đầu có thể đến sau showActive
     }
 
     func configure(line: LyricLine?, text: String, row: Int, plainFont: UIFont? = nil) {
@@ -585,6 +620,8 @@ final class LyricCell: UITableViewCell {
         contentView.layer.removeAllAnimations()
         contentView.transform = .identity
         blurView.image = nil
+        lineGlow.image = nil
+        lineGlow.alpha = 0
         shownActive = false
         builtKey = ""
         wordViews.forEach { $0.removeFromSuperview() }
@@ -627,12 +664,24 @@ final class LyricCell: UITableViewCell {
         holder.transform = CGAffineTransform(scaleX: s, y: s)
     }
 
+    private func refreshLineGlow() {
+        if shownActive && !canKaraoke && LyricGlow.factor > 0 && holder.bounds.width > 0 {
+            if lineGlow.image == nil {
+                lineGlow.image = LyricGlow.lineImage(text: text, font: textFont, width: holder.bounds.width, height: holder.bounds.height)
+            }
+            lineGlow.alpha = min(1, 0.9 * LyricGlow.factor)
+        } else {
+            lineGlow.alpha = 0
+        }
+    }
+
     func showDim(image: UIImage?, alpha: CGFloat) {
         shownActive = false
         label.alpha = 0
         wordsHost.alpha = 0
         blurView.image = image
         blurView.alpha = alpha
+        lineGlow.alpha = 0
     }
 
     /// Dòng đang hát: trắng rõ; có thời gian từng từ thì mỗi từ tô dần và nổi lên khi tới lượt.
@@ -643,6 +692,8 @@ final class LyricCell: UITableViewCell {
             blurView.alpha = 0
             label.alpha = karaoke ? 0 : 1
             wordsHost.alpha = karaoke ? 1 : 0
+            // Lời theo dòng: bật vầng sáng quanh cả dòng đang hát (lời theo từng từ đã có vầng sáng riêng ở WordView).
+            refreshLineGlow()
         }
         guard karaoke else { return }
         if wordViews.isEmpty, bounds.width > 0 { buildWordsIfNeeded(width: max(10, bounds.width - LyricCell.sideInset * 2)) }

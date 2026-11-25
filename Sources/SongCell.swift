@@ -92,9 +92,9 @@ final class SongCell: UITableViewCell {
         subtitleLabel.text = song.subtitle.isEmpty ? song.artist : song.subtitle
         downloadedIcon.isHidden = !(Library.shared.isDownloaded(song) || song.isLocalFile)
         moreButton.isHidden = !showMore
-        representedURL = song.thumbnailURL
+        representedURL = song.displayThumbnailURL
         thumb.image = nil
-        if let url = song.thumbnailURL {
+        if let url = song.displayThumbnailURL {
             ImageLoader.shared.load(url) { [weak self] image in
                 guard let self = self, self.representedURL == url else { return }
                 self.thumb.alpha = 0
