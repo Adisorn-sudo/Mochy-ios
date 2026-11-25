@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>th</string>
+		<string>vi</string>
+	</array>
+	<key>CFBundleAllowMixedLocalizations</key>
+	<true/>
+	<key>CFBundleExecutable</key>
+	<string>MochyiOS</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.puc.mochyios</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Mochy iOS</string>
+	<key>CFBundleDisplayName</key>
+	<string>Mochy iOS</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>iPhoneOS</string>
+	</array>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>AppIcon20x20</string>
+				<string>AppIcon29x29</string>
+				<string>AppIcon40x40</string>
+				<string>AppIcon60x60</string>
+			</array>
+		</dict>
+	</dict>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>MochyBuildCommit</key>
+	<string>local</string>
+	<key>MochyChannel</key>
+	<string>dev</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fonts/SF-Pro-Rounded-Light.otf</string>
+		<string>Fonts/SF-Pro-Rounded-Regular.otf</string>
+		<string>Fonts/SF-Pro-Rounded-Medium.otf</string>
+		<string>Fonts/SF-Pro-Rounded-Semibold.otf</string>
+		<string>Fonts/SF-Pro-Rounded-Bold.otf</string>
+		<string>Fonts/SF-Pro-Rounded-Heavy.otf</string>
+		<string>Fonts/SF-Pro-Rounded-Black.otf</string>
+		<!-- Tuỳ chọn: font Thái tròn đầu (OFL) cho hợp SF Pro Rounded. Bỏ các tệp .ttf này vào app/Resources/Fonts/Thai/
+		     (ví dụ Noto Sans Thai Looped). Thiếu tệp thì iOS bỏ qua, Fonts.swift tự dùng Sukhumvit Set / Thonburi. -->
+		<string>Fonts/Thai/NotoSansThaiLooped-Light.ttf</string>
+		<string>Fonts/Thai/NotoSansThaiLooped-Regular.ttf</string>
+		<string>Fonts/Thai/NotoSansThaiLooped-Medium.ttf</string>
+		<string>Fonts/Thai/NotoSansThaiLooped-SemiBold.ttf</string>
+		<string>Fonts/Thai/NotoSansThaiLooped-Bold.ttf</string>
+		<string>Fonts/Thai/NotoSansThaiLooped-ExtraBold.ttf</string>
+		<string>Fonts/Thai/NotoSansThaiLooped-Black.ttf</string>
+	</array>
+	<key>MinimumOSVersion</key>
+	<string>12.2</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>UIDeviceFamily</key>
+	<array>
+		<integer>1</integer>
+	</array>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arm64</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UILaunchImages</key>
+	<array>
+		<dict>
+			<key>UILaunchImageMinimumOSVersion</key>
+			<string>7.0</string>
+			<key>UILaunchImageName</key>
+			<string>LaunchImage-700-568h</string>
+			<key>UILaunchImageOrientation</key>
+			<string>Portrait</string>
+			<key>UILaunchImageSize</key>
+			<string>{320, 568}</string>
+		</dict>
+		<dict>
+			<key>UILaunchImageMinimumOSVersion</key>
+			<string>8.0</string>
+			<key>UILaunchImageName</key>
+			<string>LaunchImage-800-667h</string>
+			<key>UILaunchImageOrientation</key>
+			<string>Portrait</string>
+			<key>UILaunchImageSize</key>
+			<string>{375, 667}</string>
+		</dict>
+		<dict>
+			<key>UILaunchImageMinimumOSVersion</key>
+			<string>8.0</string>
+			<key>UILaunchImageName</key>
+			<string>LaunchImage-800-Portrait-736h</string>
+			<key>UILaunchImageOrientation</key>
+			<string>Portrait</string>
+			<key>UILaunchImageSize</key>
+			<string>{414, 736}</string>
+		</dict>
+	</array>
+</dict>
+</plist>
