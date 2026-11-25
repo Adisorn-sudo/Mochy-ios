@@ -386,29 +386,73 @@ final class LyricsService {
 
 /// Vầng sáng quanh chữ đang hát, chỉnh được độ sáng trong menu "…" của màn hình đang phát (0–100%).
 enum LyricGlow {
-    static let pad: CGFloat = 28
+    static let pad: CGFloat = 40
     private static let cache = NSCache<NSString, UIImage>()
+    private static let ciContext = CIContext(options: nil)
+    private static let queue = DispatchQueue(label: "mochyios.lyrics.halo", qos: .userInitiated)
+
+    /// Vầng sáng thật: làm mờ Gaussian hai tầng (gần + xa) rồi cộng lại và tăng độ đậm, nên chữ "rực" như video lyric.
+    static func halo(from flat: UIImage) -> UIImage? {
+        guard let input = CIImage(image: flat),
+              let tight = CIFilter(name: "CIGaussianBlur"),
+              let wide = CIFilter(name: "CIGaussianBlur"),
+              let add = CIFilter(name: "CIAdditionCompositing"),
+              let boost = CIFilter(name: "CIColorMatrix") else { return nil }
+        let scale = Double(flat.scale)
+        tight.setValue(input, forKey: kCIInputImageKey)
+        tight.setValue(4 * scale, forKey: kCIInputRadiusKey)
+        wide.setValue(input, forKey: kCIInputImageKey)
+        wide.setValue(11 * scale, forKey: kCIInputRadiusKey)
+        guard let t = tight.outputImage, let w = wide.outputImage else { return nil }
+        add.setValue(t, forKey: kCIInputImageKey)
+        add.setValue(w, forKey: kCIInputBackgroundImageKey)
+        guard let sum = add.outputImage else { return nil }
+        boost.setValue(sum, forKey: kCIInputImageKey)
+        boost.setValue(CIVector(x: 0, y: 0, z: 0, w: 2.4), forKey: "inputAVector")
+        guard let out = boost.outputImage,
+              let cg = ciContext.createCGImage(out, from: input.extent) else { return nil }
+        return UIImage(cgImage: cg, scale: flat.scale, orientation: .up)
+    }
 
     /// Hệ số nhân độ sáng: 60% = 1.0 (độ sáng gốc), 100% ≈ 1.67, 0% = tắt.
     static var factor: CGFloat {
         return CGFloat(AppSettings.lyricGlow) / 60
     }
 
-    /// Ảnh vầng sáng cho cả dòng (kể cả dòng xuống hàng). Vẽ ảnh nhỏ rồi để GPU phóng to nên mềm và rất nhanh.
-    static func lineImage(text: String, font: UIFont, width: CGFloat, height: CGFloat) -> UIImage? {
+    /// Ảnh vầng sáng cho cả dòng (kể cả dòng xuống hàng). Trả về ngay bản nhanh (ảnh nhỏ phóng to),
+    /// rồi dựng bản Gaussian đầy đủ ở luồng nền và gọi `completion` trên luồng chính khi xong.
+    static func lineImage(text: String, font: UIFont, width: CGFloat, height: CGFloat, completion: @escaping (UIImage) -> Void) -> UIImage? {
+        let hqKey = "hq|\(text)|\(font.fontName)|\(font.pointSize)|\(Int(width))" as NSString
+        if let hit = cache.object(forKey: hqKey) { return hit }
         let key = "line|\(text)|\(font.fontName)|\(font.pointSize)|\(Int(width))" as NSString
-        if let hit = cache.object(forKey: key) { return hit }
         let size = CGSize(width: width + pad * 2, height: height + pad * 2)
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = UIScreen.main.scale / 4
-        format.opaque = false
-        let attributed = NSAttributedString(string: text, attributes: LyricCell.attributes(font: font, color: .white, text: text))
-        let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-            attributed.draw(with: CGRect(x: pad, y: pad, width: width, height: height),
-                            options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+        var quick = cache.object(forKey: key)
+        if quick == nil {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = UIScreen.main.scale / 4
+            format.opaque = false
+            let attributed = NSAttributedString(string: text, attributes: LyricCell.attributes(font: font, color: .white, text: text))
+            let image = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                attributed.draw(with: CGRect(x: pad, y: pad, width: width, height: height),
+                                options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+            }
+            cache.setObject(image, forKey: key)
+            quick = image
         }
-        cache.setObject(image, forKey: key)
-        return image
+        queue.async {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = min(UIScreen.main.scale, 2)
+            format.opaque = false
+            let attributed = NSAttributedString(string: text, attributes: LyricCell.attributes(font: font, color: .white, text: text))
+            let flat = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+                attributed.draw(with: CGRect(x: pad, y: pad, width: width, height: height),
+                                options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+            }
+            guard let image = halo(from: flat) else { return }
+            cache.setObject(image, forKey: hqKey)
+            DispatchQueue.main.async { completion(image) }
+        }
+        return quick
     }
 }
 
@@ -419,7 +463,7 @@ final class WordView: UIView {
     private let bright = UILabel()
     private let glow = UIImageView()
     private static let glowCache = NSCache<NSString, UIImage>()
-    private static let glowPad: CGFloat = 32
+    private static let glowPad: CGFloat = 40
     private let maskLayer = CAGradientLayer()
     private let edge: CGFloat
     private let total: CGFloat
@@ -473,11 +517,7 @@ final class WordView: UIView {
                 (text as NSString).draw(in: CGRect(x: pad, y: pad, width: width, height: height),
                                         withAttributes: [.font: font, .foregroundColor: UIColor.white])
             }
-            guard let input = CIImage(image: flat), let filter = CIFilter(name: "CIGaussianBlur") else { return }
-            filter.setValue(input, forKey: kCIInputImageKey)
-            filter.setValue(Double(9 * flat.scale), forKey: kCIInputRadiusKey)
-            guard let output = filter.outputImage, let cg = ciContext.createCGImage(output, from: input.extent) else { return }
-            let image = UIImage(cgImage: cg, scale: flat.scale, orientation: .up)
+            guard let image = LyricGlow.halo(from: flat) else { return }
             glowCache.setObject(image, forKey: key)
             DispatchQueue.main.async { apply(image) }
         }
@@ -521,7 +561,7 @@ final class WordView: UIView {
         CATransaction.setDisableActions(true)
         maskLayer.frame = CGRect(x: (p - 1) * total, y: -16, width: total, height: bounds.height + 32)
         CATransaction.commit()
-        glow.alpha = min(1, 0.9 * lift * LyricGlow.factor)
+        glow.alpha = min(1, 1.0 * lift * LyricGlow.factor)
         let scale = 1 + 0.075 * lift
         transform = CGAffineTransform(translationX: 0, y: -4.5 * lift).scaledBy(x: scale, y: scale)
     }
@@ -667,9 +707,13 @@ final class LyricCell: UITableViewCell {
     private func refreshLineGlow() {
         if shownActive && !canKaraoke && LyricGlow.factor > 0 && holder.bounds.width > 0 {
             if lineGlow.image == nil {
-                lineGlow.image = LyricGlow.lineImage(text: text, font: textFont, width: holder.bounds.width, height: holder.bounds.height)
+                let requested = text
+                lineGlow.image = LyricGlow.lineImage(text: requested, font: textFont, width: holder.bounds.width, height: holder.bounds.height) { [weak self] image in
+                    guard let self = self, self.text == requested else { return }
+                    self.lineGlow.image = image
+                }
             }
-            lineGlow.alpha = min(1, 0.9 * LyricGlow.factor)
+            lineGlow.alpha = min(1, 1.0 * LyricGlow.factor)
         } else {
             lineGlow.alpha = 0
         }

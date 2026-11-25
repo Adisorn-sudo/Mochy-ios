@@ -145,6 +145,8 @@ final class NowPlayingViewController: UIViewController {
     private let artView = UIImageView()
     private let video = VideoBackdrop()
     private let fluidView = FluidBackgroundView()
+    private let backdropExtra = LyricsBackdropView()   // nền lời tự chọn (đen / màu / ảnh)
+    private let stars = StarFieldView()                 // hiệu ứng sao lấp lánh
     private let bandBlur = ProgressiveBlurView(layers: 4)
     private let bandShade = GradientView()
     private let topShade = GradientView()
@@ -204,6 +206,7 @@ final class NowPlayingViewController: UIViewController {
         buildLayout()
         let center = NotificationCenter.default
         center.addObserver(self, selector: #selector(stateChanged), name: .playerStateChanged, object: nil)
+        center.addObserver(self, selector: #selector(backdropChanged), name: .lyricBackdropChanged, object: nil)
         center.addObserver(self, selector: #selector(timeChanged), name: .playerTimeChanged, object: nil)
         center.addObserver(self, selector: #selector(libraryChanged), name: .libraryChanged, object: nil)
         center.addObserver(self, selector: #selector(libraryChanged), name: .downloadChanged, object: nil)
@@ -283,6 +286,15 @@ final class NowPlayingViewController: UIViewController {
         bandBlur.isUserInteractionEnabled = false
         view.addSubview(bandBlur)
         view.addSubview(fluidView)   // nằm trên lớp mờ: dải màu phủ lên phần ảnh đã mờ
+        backdropExtra.frame = view.bounds
+        backdropExtra.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        backdropExtra.alpha = 0
+        backdropExtra.reload()
+        view.addSubview(backdropExtra)
+        stars.frame = view.bounds
+        stars.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        stars.alpha = 0
+        view.addSubview(stars)
         bandShade.isUserInteractionEnabled = false
         bandShade.gradientLayer.colors = [UIColor.clear.cgColor, UIColor(white: 0, alpha: 0.32).cgColor]
         bandShade.gradientLayer.locations = [0.3, 1]
@@ -480,10 +492,19 @@ final class NowPlayingViewController: UIViewController {
         let chromeViews = chromeTop + chromeBottom
         if new != .immersive { chromeViews.forEach { $0.isUserInteractionEnabled = true } }
         fluidView.setReveal(lyr ? .full : .band, animated: animated)
+        if lyr {
+            stars.setRunning(true)
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+                if self?.mode == .cover { self?.stars.setRunning(false) }
+            }
+        }
         if lyr { video.pause() }   // lời phủ kín thì không cần giải mã video phía sau
         let changes = {
             self.mediaView.alpha = lyr ? 0 : 1
             self.fluidView.alpha = lyr ? 1 : (self.backdropLight ? 0 : 1)
+            self.backdropExtra.alpha = lyr ? 1 : 0
+            self.stars.alpha = lyr ? 1 : 0
             self.bandBlur.alpha = lyr ? 0 : 1
             self.bandShade.alpha = lyr ? 0 : 1
             self.topShade.alpha = lyr ? 0 : 1
@@ -786,6 +807,12 @@ final class NowPlayingViewController: UIViewController {
         sheet.addAction(UIAlertAction(title: LF("Độ sáng chữ lời: %@…", AppSettings.lyricGlow == 0 ? L("Tắt") : "\(AppSettings.lyricGlow)%"), style: .default) { [weak self] _ in
             self?.showGlowPanel()
         })
+        sheet.addAction(UIAlertAction(title: LF("Nền lời: %@…", AppSettings.lyricBackdropStyle.title), style: .default) { [weak self] _ in
+            self?.backdropTapped()
+        })
+        sheet.addAction(UIAlertAction(title: LF("Sao sáng: %@…", AppSettings.starLevel == 0 ? L("Tắt") : "\(AppSettings.starLevel)%"), style: .default) { [weak self] _ in
+            self?.showStarPanel()
+        })
         sheet.addAction(UIAlertAction(title: L("Đổi ảnh bìa…"), style: .default) { [weak self] _ in
             guard let self = self else { return }
             CustomArtworkPicker.present(for: song, from: self)
@@ -867,6 +894,85 @@ final class NowPlayingViewController: UIViewController {
             panel.alpha = 1
             panel.transform = .identity
         }, completion: nil)
+    }
+
+    /// Bảng chỉnh độ sáng / số lượng sao lấp lánh (0–100%).
+    private func showStarPanel() {
+        guard weightPanel == nil else { return }
+        if mode == .cover {
+            lyricsView.resetFollow()
+            loadLyrics()
+            apply(mode: .lyrics, animated: true)
+        } else if mode == .immersive {
+            apply(mode: .lyrics, animated: true)
+        }
+        let panel = GlowPanel(value: AppSettings.starLevel, title: L("Sao sáng"))
+        panel.onChange = { [weak self] value in
+            AppSettings.starLevel = value
+            self?.stars.apply()
+        }
+        panel.onClose = { [weak self] in self?.hideWeightPanel() }
+        panel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(panel)
+        NSLayoutConstraint.activate([
+            panel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 17),
+            panel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -17),
+            panel.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -(view.safeAreaInsets.bottom + 24)),
+            panel.heightAnchor.constraint(equalToConstant: 108)
+        ])
+        panel.alpha = 0
+        panel.transform = CGAffineTransform(translationX: 0, y: 30)
+        weightPanel = panel
+        idleTimer?.invalidate()
+        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0, options: [], animations: {
+            panel.alpha = 1
+            panel.transform = .identity
+        }, completion: nil)
+    }
+
+    @objc private func backdropChanged() {
+        backdropExtra.reload()
+        stars.apply()
+    }
+
+    /// Chọn nền của màn hình lời: theo ảnh bìa / đen / màu / ảnh tự chọn.
+    private func backdropTapped() {
+        let sheet = UIAlertController(title: L("Nền lời bài hát"), message: L("Áp dụng cho màn hình lời đang phát."), preferredStyle: .actionSheet)
+        let current = AppSettings.lyricBackdropStyle
+        func choose(_ style: LyricBackdropStyle) {
+            AppSettings.lyricBackdropStyle = style
+            BackdropStore.notifyChanged()
+        }
+        sheet.addAction(UIAlertAction(title: (current == .artwork ? "✓ " : "") + L("Theo ảnh bìa"), style: .default) { _ in choose(.artwork) })
+        sheet.addAction(UIAlertAction(title: (current == .black ? "✓ " : "") + L("Đen tuyền"), style: .default) { _ in choose(.black) })
+        let presets: [(String, String)] = [
+            (L("Tím đêm"), "2B1B5A"), (L("Xanh đêm"), "10264F"), (L("Xanh rêu"), "12392B"),
+            (L("Đỏ rượu"), "571425"), (L("Cam hổ phách"), "6B3A12"), (L("Hồng"), "5A1B44")
+        ]
+        let currentHex = AppSettings.lyricBackdropColor.backdropHex
+        for preset in presets {
+            let mark = current == .color && currentHex == preset.1 ? "✓ " : ""
+            sheet.addAction(UIAlertAction(title: mark + preset.0, style: .default) { _ in
+                AppSettings.lyricBackdropColor = UIColor(backdropHex: preset.1)
+                choose(.color)
+            })
+        }
+        if #available(iOS 14.0, *) {
+            sheet.addAction(UIAlertAction(title: L("Chọn màu khác…"), style: .default) { [weak self] _ in
+                guard let self = self else { return }
+                BackdropColorPicker.present(from: self)
+            })
+        }
+        sheet.addAction(UIAlertAction(title: (current == .photo ? "✓ " : "") + L("Chọn ảnh làm nền…"), style: .default) { [weak self] _ in
+            guard let self = self else { return }
+            BackdropPhotoPicker.present(from: self)
+        })
+        sheet.addAction(UIAlertAction(title: L("Đóng"), style: .cancel, handler: nil))
+        if let popover = sheet.popoverPresentationController {
+            popover.sourceView = moreGlass
+            popover.sourceRect = moreGlass.bounds
+        }
+        present(sheet, animated: true, completion: nil)
     }
 
     private func hideWeightPanel() {

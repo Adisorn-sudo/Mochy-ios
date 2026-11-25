@@ -539,7 +539,7 @@ final class GlowPanel: UIView {
     private let done = UIButton(type: .system)
     private var value: Int
 
-    init(value: Int) {
+    init(value: Int, title: String? = nil) {
         self.value = value
         super.init(frame: .zero)
         layer.cornerRadius = 22
@@ -549,7 +549,7 @@ final class GlowPanel: UIView {
         blur.frame = bounds
         blur.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         addSubview(blur)
-        titleLabel.text = L("Độ sáng chữ lời")
+        titleLabel.text = title ?? L("Độ sáng chữ lời")
         titleLabel.font = RoundedFont.font(16, index: 5)
         titleLabel.textColor = .white
         valueLabel.text = GlowPanel.text(for: value)
