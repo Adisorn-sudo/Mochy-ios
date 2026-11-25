@@ -1,12 +1,6 @@
 name: Build and release
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
-      - 'NOTICE'
   workflow_dispatch:
     inputs:
       channel:
